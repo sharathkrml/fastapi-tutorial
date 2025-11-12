@@ -13,6 +13,7 @@ def transcribe_mp3(mp3_file_path, model_name="base"):
     """
     model = whisper.load_model(model_name)
     result = model.transcribe(mp3_file_path)
+    print(f"Result: {result}")
     return result["text"]
 
 
