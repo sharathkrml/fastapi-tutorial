@@ -1,9 +1,13 @@
 import json
+import os
+import tempfile
 from http import HTTPStatus
 
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
 from starlette.responses import Response
+
+from utils.whisper import transcribe_mp3
 
 
 router = APIRouter()
