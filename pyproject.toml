@@ -6,10 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.12",
+    "ffmpeg>=1.4",
+    "openai-whisper>=20250625",
     "python-multipart>=0.0.20",
     "requests>=2.32.3",
     "uvicorn>=0.34.2",
-    "whisper>=1.1.10",
 ]
 
 [dependency-groups]
