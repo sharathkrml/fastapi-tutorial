@@ -6,7 +6,7 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Install ffmpeg (required for Whisper to process audio files)
-# RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
 COPY pyproject.toml uv.lock* .
