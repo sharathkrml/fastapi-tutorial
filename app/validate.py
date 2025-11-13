@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from openai import OpenAI
 from starlette.responses import Response
 
-from utils.prompts import evaluate_speaking_response
+from utils.prompts import evaluate_speaking_response, evaluate_writing_response
 from utils.whisper import transcribe_mp3
 
 # Set up logger
@@ -26,7 +26,7 @@ client = OpenAI(
 router = APIRouter()
 
 
-@router.post("/validate/speaking")
+@router.post("/speaking")
 async def validate_speaking(
     file: UploadFile = File(...),
     speaking_task: str = Form(...),
@@ -151,3 +151,65 @@ async def validate_speaking(
                 logger.debug(f"Cleaning up temporary file: {tmp_file_path}")
                 os.unlink(tmp_file_path)
                 logger.debug("Temporary file deleted successfully")
+
+
+
+@router.post("/writing")
+async def validate_writing(
+    writing_task: str = Form(...),
+    user_response: str = Form(...),
+) -> Response:
+    """
+    Validate a writing response by evaluating it.
+    
+    Args:
+        writing_task: JSON string of the writing task object
+        user_response: JSON string of the user's response
+    """
+    logger.info(f"Received request to validate writing response: writing_task='{writing_task}', user_response='{user_response}'")
+    try:
+        logger.debug(f"Parsing writing_task JSON: {writing_task}")
+        writing_task_dict = json.loads(writing_task)
+        logger.debug(f"Successfully parsed writing_task with level: {writing_task_dict.get('metadata', {}).get('level', 'unknown')}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse writing_task JSON: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"Invalid JSON in writing_task: {str(e)}"
+        )
+    logger.debug("Generating evaluation prompt")
+    prompt = evaluate_writing_response(writing_task_dict, user_response)
+    logger.debug(f"Evaluation prompt generated (length: {len(prompt)} characters)")
+    logger.info("Sending request to OpenAI API for evaluation")
+    response = client.chat.completions.create(
+        model="meta-llama/llama-3.3-8b-instruct:free",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    logger.debug("Received response from OpenAI API")
+    content = response.choices[0].message.content
+    logger.debug(f"Evaluation response received (length: {len(content)} characters)")
+    logger.debug(f"Evaluation response preview: {content[:200]}...")
+    try:
+        parsed_json = json.loads(content)
+        logger.info(f"Successfully parsed evaluation JSON response")
+        logger.debug(f"Evaluation result: task_completed={parsed_json.get('task_completed')}, is_acceptable={parsed_json.get('is_acceptable')}, score={parsed_json.get('score_out_of_10')}")
+        # If successful, return parsed JSON
+        return Response(
+            content=json.dumps(parsed_json),
+            media_type="application/json",
+            status_code=HTTPStatus.OK
+        )   
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse evaluation response as JSON: {str(e)}. Returning as plain text")
+        # If not JSON, return as plain text
+        return Response(
+            content=content,
+            media_type="text/plain",
+            status_code=HTTPStatus.OK
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error validating writing response: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Error validating writing response: {str(e)}"
+        )   
