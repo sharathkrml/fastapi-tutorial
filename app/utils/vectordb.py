@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Get the absolute path to the database directory
 # This file is in app/utils/, so we go up one level to app/, then to utils/lancedb_data
-_current_dir = Path(__file__).parent
+_current_dir = Path(__file__).parent.resolve()  # Use resolve() to get absolute path
 db_path = str(_current_dir / "lancedb_data")
 
 # Set up logger
@@ -47,7 +47,19 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
         raise ValueError("Invalid level. Must be 'A1', 'A2', 'B1', or 'B2'.")
     
     dbName = level + "_MINIMAL_vocabulary"
-    logger.debug(f"Connecting to LanceDB at path: {db_path}")
+    
+    # Verify the database directory exists
+    db_path_obj = Path(db_path)
+    if not db_path_obj.exists():
+        error_msg = f"LanceDB directory not found at: {db_path} (absolute: {db_path_obj.absolute()})"
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+    
+    # List available tables for debugging
+    available_tables = [d.name for d in db_path_obj.iterdir() if d.is_dir() and d.name.endswith('.lance')]
+    logger.debug(f"Available LanceDB tables: {available_tables}")
+    
+    logger.debug(f"Connecting to LanceDB at path: {db_path} (absolute: {db_path_obj.absolute()})")
     db = connect(db_path)
     
     # LanceDB table names match directory names, which include .lance extension
