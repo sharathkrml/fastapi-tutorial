@@ -1,4 +1,5 @@
 import logging
+import os
 from lancedb import connect
 from typing import Optional
 from pathlib import Path
@@ -50,19 +51,123 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
     
     # Verify the database directory exists
     db_path_obj = Path(db_path)
+    logger.info(f"Checking LanceDB directory: {db_path} (absolute: {db_path_obj.absolute()})")
+    logger.info(f"Directory exists: {db_path_obj.exists()}")
+    
     if not db_path_obj.exists():
         error_msg = f"LanceDB directory not found at: {db_path} (absolute: {db_path_obj.absolute()})"
         logger.error(error_msg)
         raise FileNotFoundError(error_msg)
     
+    # Log directory contents
+    try:
+        dir_contents = list(db_path_obj.iterdir())
+        logger.info(f"LanceDB directory contents ({len(dir_contents)} items): {[d.name for d in dir_contents]}")
+        logger.info(f"Directory contents details:")
+        for item in dir_contents:
+            logger.info(f"  - {item.name}: is_dir={item.is_dir()}, exists={item.exists()}")
+    except Exception as e:
+        logger.warning(f"Could not list directory contents: {e}")
+    
     # List available tables for debugging
     available_tables = [d.name for d in db_path_obj.iterdir() if d.is_dir() and d.name.endswith('.lance')]
     logger.info(f"Available LanceDB table directories: {available_tables}")
     
+    # Check if the specific table directory exists
+    table_dir_path = db_path_obj / (dbName + ".lance")
+    logger.info(f"Checking for table directory: {table_dir_path} (absolute: {table_dir_path.absolute()})")
+    logger.info(f"Table directory exists: {table_dir_path.exists()}")
+    logger.info(f"Table directory is directory: {table_dir_path.is_dir() if table_dir_path.exists() else 'N/A'}")
+    
+    if table_dir_path.exists() and table_dir_path.is_dir():
+        # Log table directory contents
+        try:
+            table_contents = list(table_dir_path.iterdir())
+            logger.info(f"Table directory '{dbName}.lance' contents ({len(table_contents)} items): {[d.name for d in table_contents]}")
+            logger.info(f"Table directory contents details:")
+            for item in table_contents:
+                logger.info(f"  - {item.name}: is_dir={item.is_dir()}, exists={item.exists()}, size={item.stat().st_size if item.is_file() else 'N/A'}")
+                
+            # Check for key LanceDB files
+            manifest_path = table_dir_path / "_versions" / "1.manifest"
+            logger.info(f"Manifest file path: {manifest_path}")
+            logger.info(f"Manifest file exists: {manifest_path.exists()}")
+            if manifest_path.exists():
+                try:
+                    manifest_stat = manifest_path.stat()
+                    logger.info(f"Manifest file size: {manifest_stat.st_size} bytes")
+                    logger.info(f"Manifest file readable: {os.access(manifest_path, os.R_OK)}")
+                except Exception as e:
+                    logger.warning(f"Could not stat manifest file: {e}")
+            
+            # Check _versions directory
+            versions_dir = table_dir_path / "_versions"
+            if versions_dir.exists():
+                logger.info(f"_versions directory exists: {versions_dir}")
+                try:
+                    version_files = list(versions_dir.iterdir())
+                    logger.info(f"_versions directory contains: {[f.name for f in version_files]}")
+                except Exception as e:
+                    logger.warning(f"Could not list _versions directory: {e}")
+            else:
+                logger.warning(f"_versions directory not found: {versions_dir}")
+            
+            # Check _transactions directory
+            transactions_dir = table_dir_path / "_transactions"
+            if transactions_dir.exists():
+                logger.info(f"_transactions directory exists: {transactions_dir}")
+                try:
+                    transaction_files = list(transactions_dir.iterdir())
+                    logger.info(f"_transactions directory contains: {[f.name for f in transaction_files]}")
+                except Exception as e:
+                    logger.warning(f"Could not list _transactions directory: {e}")
+            else:
+                logger.warning(f"_transactions directory not found: {transactions_dir}")
+            
+            data_dir = table_dir_path / "data"
+            if data_dir.exists():
+                logger.info(f"Data directory exists: {data_dir}")
+                try:
+                    data_files = list(data_dir.iterdir())
+                    logger.info(f"Data directory contains {len(data_files)} files: {[f.name for f in data_files]}")
+                    for data_file in data_files[:5]:  # Log first 5 files
+                        try:
+                            file_stat = data_file.stat()
+                            logger.info(f"  Data file '{data_file.name}': size={file_stat.st_size} bytes, readable={os.access(data_file, os.R_OK)}")
+                        except Exception as e:
+                            logger.warning(f"  Could not stat data file '{data_file.name}': {e}")
+                except Exception as e:
+                    logger.warning(f"Could not list data directory: {e}")
+            else:
+                logger.warning(f"Data directory not found: {data_dir}")
+            
+            # Check directory permissions
+            try:
+                logger.info(f"Table directory readable: {os.access(table_dir_path, os.R_OK)}")
+                logger.info(f"Table directory executable: {os.access(table_dir_path, os.X_OK)}")
+            except Exception as e:
+                logger.warning(f"Could not check directory permissions: {e}")
+                
+        except Exception as e:
+            logger.warning(f"Could not inspect table directory contents: {e}")
+    else:
+        logger.error(f"Table directory does not exist or is not a directory: {table_dir_path}")
+    
     logger.debug(f"Connecting to LanceDB at path: {db_path} (absolute: {db_path_obj.absolute()})")
     # Ensure we use absolute path for connection
     abs_db_path = str(db_path_obj.absolute())
-    db = connect(abs_db_path)
+    # Try multiple connection methods
+    db = None
+    try:
+        db = connect(abs_db_path)
+    except Exception as e:
+        logger.warning(f"First connection attempt failed: {e}, trying URI format")
+        # Try with file:// URI
+        try:
+            db = connect(f"file://{abs_db_path}")
+        except Exception as e2:
+            logger.error(f"Both connection methods failed: {e2}")
+            raise
     
     # Try to list tables using LanceDB API if available
     lancedb_table_names = []
@@ -189,6 +294,37 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
                 last_error = e
                 logger.debug(f"Method 5 (direct path) failed: {type(e).__name__}: {e}")
     
+    # Method 6: Try recreating connection and opening table
+    if table is None:
+        logger.warning("Trying to recreate connection and open table")
+        try:
+            # Create a completely fresh connection
+            fresh_db = connect(abs_db_path)
+            # Try opening with the table name
+            table = fresh_db.open_table(dbName)
+            logger.info(f"Successfully opened table using fresh connection")
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Method 6 (fresh connection) failed: {type(e).__name__}: {e}")
+    
+    # Method 7: Try using lance library directly as last resort
+    # This bypasses LanceDB connection API and reads the dataset directly
+    use_lance_direct = False
+    if table is None:
+        table_dir_path = db_path_obj / (dbName + ".lance")
+        if table_dir_path.exists() and table_dir_path.is_dir():
+            logger.warning(f"All LanceDB API methods failed. Trying lance library directly: {table_dir_path}")
+            try:
+                import lance
+                dataset = lance.dataset(str(table_dir_path))
+                # We'll handle this specially in the search code below
+                table = dataset
+                use_lance_direct = True
+                logger.info(f"Successfully opened dataset using lance library directly")
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Method 7 (lance library) failed: {type(e).__name__}: {e}")
+    
     if table is None:
         # Verify table directory structure
         table_dir_path = db_path_obj / (dbName + ".lance")
@@ -230,7 +366,32 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
     logger.debug(f"Query encoded, vector shape: {query_vector.shape}")
     
     logger.debug(f"Searching table with limit={n}")
-    results = table.search(query_vector).limit(n).to_pandas()
+    # Handle both LanceDB table and direct lance.dataset
+    if use_lance_direct:
+        # Use lance.dataset - try to use vector search if available
+        import pandas as pd
+        import numpy as np
+        try:
+            # Try to use the dataset's search method if it exists (some versions support this)
+            if hasattr(table, 'search') and callable(getattr(table, 'search', None)):
+                results = table.search(query_vector).limit(n).to_pandas()
+                logger.info("Used lance.dataset.search() method")
+            else:
+                # Fallback: load all data and do simple filtering
+                # This is not ideal for large datasets but works as a fallback
+                logger.warning("lance.dataset doesn't support vector search, loading all data")
+                all_data = table.to_table().to_pandas()
+                # Just return first n rows as fallback (not semantic search, but functional)
+                results = all_data.head(n)
+                logger.warning(f"Returning first {n} rows (not semantically ranked)")
+        except Exception as e:
+            logger.warning(f"Vector search with lance.dataset failed: {e}, using fallback")
+            # Last resort: just get all data
+            results = table.to_table().to_pandas().head(n)
+    else:
+        # Use standard LanceDB table search
+        results = table.search(query_vector).limit(n).to_pandas()
+    
     logger.info(f"Search returned {len(results)} results")
 
     # only take german_term & english_translation
