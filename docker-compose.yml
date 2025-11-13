@@ -1,13 +1,20 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: fastapi-tutorial
-    ports:
-      - "8000:8000"
+    # Container name is optional - deployment platforms may assign their own
+    # Uncomment for local development if needed:
+    # container_name: fastapi-tutorial
+    # Port mapping - comment out for deployment platforms (Coolify, etc.) that handle ports automatically
+    # For local development, uncomment the line below:
+    # ports:
+    #   - "8000:8000"
+    # Expose port 8000 to other containers (doesn't bind to host)
+    expose:
+      - "8000"
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
@@ -16,4 +23,3 @@ services:
     # This ensures the _versions directories are accessible and avoids copy issues
     volumes:
       - ./app/utils/lancedb_data:/app/utils/lancedb_data:ro
-

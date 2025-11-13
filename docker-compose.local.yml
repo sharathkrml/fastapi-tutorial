@@ -1,0 +1,12 @@
+# Local development override file
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+# Or simply: docker-compose up (if docker-compose.override.yml exists)
+
+version: '3.8'
+
+services:
+  api:
+    container_name: fastapi-tutorial
+    ports:
+      - "8000:8000"
+
