@@ -1,14 +1,22 @@
 import json
+import logging
 from datetime import datetime
 
 from utils.vectordb import fetch_vocab_from_vector_db
 
+# Set up logger
+logger = logging.getLogger(__name__)
+
 def get_listening_prompt(topic, level="A1", item_id_start=1, prefer_type="MultipleChoice"):
     """Listening-specific generation prompt that returns an ARRAY of 10 items."""
+    logger.info(f"Generating listening prompt: topic='{topic}', level={level}, item_id_start={item_id_start}, prefer_type={prefer_type}")
     
+    logger.debug(f"Fetching vocabulary for topic '{topic}' at level {level}")
     vocab_list = fetch_vocab_from_vector_db(topic, level)
+    logger.info(f"Retrieved {len(vocab_list)} vocabulary items for prompt generation")
+    logger.debug(f"Vocabulary items: {vocab_list}")
 
-    return f"""
+    prompt = f"""
 Task:
 Generate EXACTLY 10 listening comprehension items for CEFR {level}.
 Each item must be of type "{prefer_type}" unless clearly unsuitable, then use "RichtigFalsch".
@@ -63,8 +71,11 @@ Content Rules:
 
 Return ONLY the JSON array with 10 objects.
 """
+    logger.debug(f"Generated prompt (length: {len(prompt)} characters)")
+    logger.info("Listening prompt generated successfully")
+    return prompt
 
 
-if __name__ == "__main__":
-    prompt = get_listening_prompt("food", "B2")
-    print(prompt)
+# if __name__ == "__main__":
+#     prompt = get_listening_prompt("food", "B2")
+#     print(prompt)
