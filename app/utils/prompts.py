@@ -15,6 +15,14 @@ def get_listening_prompt(topic, level="A1", item_id_start=1, prefer_type="Multip
     vocab_list = fetch_vocab_from_vector_db(topic, level)
     logger.info(f"Retrieved {len(vocab_list)} vocabulary items for prompt generation")
     logger.debug(f"Vocabulary items: {vocab_list}")
+    
+    level_rules = {
+        "A1": "CRITICAL GRAMMAR: Present tense, Imperative, Nominative/Accusative/Dative cases. Simple Sentences with 'und, aber, oder, sondern, denn, dann'.\nTOPICS: Personal info, daily routine, time (official/unofficial), directions, simple announcements (Bahnhof/Bus). MAX AUDIO LENGTH: 12 seconds. Audio must be SIMPLE A1 German (max 15 words). (Source A1 Plan)",
+        "A2": "CRITICAL GRAMMAR: Perfekt/Präteritum (Auxiliary/Modal verbs), Reflexive verbs, Passiv Präsens. Basic Subordinate clauses with 'weil, wenn, dass'.\nTOPICS: Giving reasons, reporting travel, discussing home/neighborhood, health, education/career, past life events. MAX AUDIO LENGTH: 15-20 seconds. Audio can contain past tenses and basic subordinate clauses. (Source A2 Plan)",
+        "B1": "CRITICAL GRAMMAR: Futur I, Konjunktiv II (Irreale Wunsch/Bedingungssätze), Konjunktiv I (reported speech), Passiv Präsens/Perfekt, Genitiv Relativsätze. Subordinate clauses: Concessive (obwohl), Consecutive (so dass), Final (um...zu, damit).\nTOPICS: Opinions, consensus-finding, advice, job application/interview, statistics, political/historical topics. MAX AUDIO LENGTH: 20-25 seconds. Audio must be clear B1 German with complex structures. (Source B1 Plan)",
+        "B2": "CRITICAL GRAMMAR: Direkte/Indirekte Rede with Konjunktiv I/Umformung. Passiv in allen Zeiten. Complex Relativsätze with Präpositional-adverbien. Extensive use of Modalpartikels.\nTOPICS: Non-verbal communication, negative criticism, analyzing CVs, abstract discussions (violence, poverty, internet addiction, science, history). MAX AUDIO LENGTH: 25-30 seconds. Audio must be sophisticated, formal, and complex B2 German. (Source B2 Plan)",
+    }.get(level, "Use general CEFR rules for this level.")
+
 
     prompt = f"""
 Task:
@@ -26,7 +34,6 @@ Inputs:
 - vocab_list: {json.dumps(vocab_list, ensure_ascii=False)}
 - topic: "{topic}"
 - start_id: {item_id_start}
-- max_audio_length: 12 seconds
 
 JSON ARRAY STRUCTURE (exact):
 [
@@ -58,16 +65,17 @@ JSON ARRAY STRUCTURE (exact):
 CRITICAL REQUIREMENTS:
 - Start IDs at {item_id_start} and increment sequentially.
 - Each audioText must include at least ONE word from vocab_list.
-- audioText must be SIMPLE A1 German (max 15 words).
-- distractors must be realistic (e.g., similar times, similar places).
+- Distractors must be realistic (e.g., similar times, similar places).
 - options MUST contain 3 items for MultipleChoice, 2 for RichtigFalsch.
 - correctAnswer MUST be EXACTLY one of the options.
 - No explanations, no prose, no markdown — ONLY the JSON array.
 
 Content Rules:
-- Use daily-life contexts: Bahnhof, Bus, Supermarkt, Café, Arbeit, Wetter, Termine.
 - Use short, natural, realistic announcements or dialogues.
 - Avoid proper nouns except common German cities (Berlin, Hamburg, München).
+
+CEFR Level Specific Rules:
+{level_rules}
 
 Return ONLY the JSON array with 10 objects.
 """
@@ -84,6 +92,14 @@ def get_reading_prompt(topic, level="A1", item_id_start=1, prefer_type="Multiple
     vocab_list = fetch_vocab_from_vector_db(topic, level)
     logger.info(f"Retrieved {len(vocab_list)} vocabulary items for prompt generation")
     logger.debug(f"Vocabulary items: {vocab_list}")
+
+    level_rules = {
+        "A1": "CRITICAL GRAMMAR: Present tense, Nominative/Accusative/Dative (articles). Conjunctions: 'und, aber, oder, sondern, denn, dann'.\nTEXT TYPES: Postcards, simple messages, announcements, timetables, short forms (max 80 words).\nQUESTIONS: Test basic facts, location, time, and main idea. (Source A1 Plan)",
+        "A2": "CRITICAL GRAMMAR: Perfekt/Präteritum/Plusquamperfekt (Auxiliary/Modal verbs). Reflexive verbs, Passiv Präsens. Subordinate clauses: 'weil, wenn, dass'.\nTEXT TYPES: Emails about travel/weekend, simple articles, small ads, health tips (max 80 words). Questions: Test specific details, events, reasons, and simple inference. (Source A2 Plan)",
+        "B1": "CRITICAL GRAMMAR: Futur I, Konjunktiv II, Konjunktiv I (reported speech), Passiv Präsens/Perfekt, Genitiv Relativsätze. Subordinate clauses: Concessive, Consecutive, Final. Two-part conjunctions.\nTEXT TYPES: Letters of complaint/inquiry, job application materials, statistics reports, newspaper articles (max 150 words). Questions: Test main idea, author's suggestion, purpose of text, and moderate inference. (Source B1 Plan)",
+        "B2": "CRITICAL GRAMMAR: Direkte/Indirekte Rede with Konjunktiv I/Umformung. Passiv in allen Zeiten. Complex Relativsätze with Präpositional-adverbien. Modalpartikels. Formal/Abstract Discourse.\nTEXT TYPES: Formal reports, complex articles on science/politics/history/sociology, nuanced critiques, analyses of CVs (max 150 words). Questions: Test complex inference, implied meaning, author's stance, and detailed analysis of argument structure. (Source B2 Plan)",
+    }.get(level, "Use general CEFR rules for this level.")
+
 
     prompt = f"""
 Task:
@@ -129,8 +145,6 @@ CRITICAL REQUIREMENTS:
 - Start IDs at {item_id_start} and increment sequentially.
 - Passage MUST include at least TWO words from vocab_list.
 - Passage must use simple, natural German appropriate for level {level}.
-- For A1/A2: Use present tense, simple sentences, familiar daily contexts.
-- For B1/B2: May include past tense, complex sentences, varied contexts.
 - options MUST contain 3 items for MultipleChoice, 2 for RichtigFalsch.
 - correctAnswer MUST be EXACTLY one of the options.
 - Distractors must be plausible (similar to correct answer but incorrect).
@@ -139,17 +153,12 @@ CRITICAL REQUIREMENTS:
 
 Content Rules:
 - Use realistic texts: emails, postcards, advertisements, simple articles, schedules.
-- Topics: daily routines, shopping, travel, work, hobbies, family, weather.
 - Avoid proper nouns except common German cities (Berlin, Hamburg, München).
 - Passages should be self-contained and understandable from context.
-- Questions should test comprehension (main idea, specific details, inference based on level).
 
 
-Question Types by Level:
-- A1: "What is the main topic?", "Where does this take place?", "When is this?"
-- A2: "What does the person want?", "When is the event?", "Is this correct?"
-- B1: "What is the purpose of this text?", "What does the author suggest?", "According to the text..."
-- B2: "What can we infer?", "What is implied?", "What does the author mean?"
+CEFR Level Specific Rules and Question Types:
+{level_rules}
 
 
 Return ONLY the JSON array with 8 objects.
@@ -174,6 +183,42 @@ def get_writing_prompt(topic, level="A1", item_id_start=1, task_type="email"):
     vocab_list = fetch_vocab_from_vector_db(topic, level)
     logger.info(f"Retrieved {len(vocab_list)} vocabulary items for prompt generation")
     logger.debug(f"Vocabulary items: {vocab_list}")
+    
+    level_guidelines = f"""
+Task Guidelines by Level (Based on Study Plans):
+
+A1 LEVEL:
+- Task type: email, postcard, simple message, form filling.
+- Focus: Can user write basic personal information and simple sentences?
+- Content: greetings, personal details, day-to-day activities, basic preferences, simple directions.
+- Grammar: Present tense, Nominative/Accusative/Dative, simple sentences with 'und, aber, oder'. Minimal errors are acceptable. (Source A1 Plan)
+- Word count: 30-50 words.
+- Evaluation: All 3 content points addressed? Mostly understandable? Basic grammar/spelling OK?
+
+A2 LEVEL:
+- Task type: email, postcard, simple letter, message.
+- Focus: Can user write about familiar topics with some variety and complexity?
+- Content: routines, past/future events (using Perfekt/Präteritum), simple opinions, giving reasons ('weil', 'dass').
+- Grammar: Present + past tense (Perfekt, Präteritum, Plusquamperfekt), some complex sentences with basic subordinate clauses. (Source A2 Plan)
+- Word count: 60-80 words.
+- Evaluation: All 3 points covered? Uses past tense? Demonstrates use of basic complex structures? Mostly correct spelling/grammar?
+
+B1 LEVEL:
+- Task type: email, formal/informal letter, short article, blog post, report excerpt.
+- Focus: Can user organize ideas, explain reasons, give advice, and discuss hypothetical situations?
+- Content: opinions, reasons (using complex conjunctions like 'obwohl', 'so dass'), descriptions of experiences (using a range of past tenses), giving advice. Must address multiple parts of a topic.
+- Grammar: Full range of tenses (Präteritum, Plusquamperfekt, Futur I), complex sentences with subordinate and infinitive clauses, use of Passiv Präsens/Perfekt, Konjunktiv II. (Source B1 Plan)
+- Word count: 100-150 words.
+- Evaluation: Ideas clearly organized? Reasons provided? Appropriate tone/register? Effective use of B1 grammar (e.g., subordinate clauses, Passiv)?
+
+B2 LEVEL:
+- Task type: formal letter, article, report, analysis, detailed critique.
+- Focus: Can user argue, analyze, hypothesize, and write formally/informally with nuanced language and minimal errors?
+- Content: complex opinions, analysis, hypothetical situations (Irreale Wünsche), formal requests, comparison of ideas, summarizing/transforming information (Direkte/Indirekte Rede). Topics are often abstract (science, politics, society).
+- Grammar: Full range of tenses/moods (Konjunktiv I/II), complex structures, extensive Passiv, sophisticated vocabulary, correct use of Modalpartikels and Genitive prepositions. (Source B2 Plan)
+- Word count: 150-250 words.
+- Evaluation: Clear, well-structured argument? Appropriate, sophisticated register? Nuanced vocabulary? Minimal errors in complex B2 structures?
+"""
 
     prompt = f"""
 Task:
@@ -225,57 +270,18 @@ CRITICAL REQUIREMENTS:
 - Start IDs at {item_id_start} and increment sequentially.
 - Task must require at least 2-3 words from vocab_list.
 - content_points: List 3 key information points that MUST be included in response.
-- Word counts: A1 (30-50), A2 (60-80), B1 (100-150), B2 (150-250).
-- example_response should be 1-2 sentences showing acceptable output quality.
 - evaluation_criteria MUST define how to assess: task completion, vocabulary, grammar, coherence.
 - No explanations, no prose, no markdown — ONLY the JSON array.
 
 
-Task Guidelines by Level:
-
-A1 LEVEL:
-- Task type: email, postcard, simple message, form filling.
-- Focus: Can user write basic personal information and simple sentences?
-- Content: greetings, personal details, day-to-day activities, basic preferences.
-- Grammar: Present tense, simple sentences, minimal errors acceptable.
-- Word count: 30-50 words.
-- Example context: "Write an email to a friend saying what you do in your free time."
-- Evaluation: All 3 content points addressed? Mostly understandable? Basic spelling OK?
-
-A2 LEVEL:
-- Task type: email, postcard, simple letter, message.
-- Focus: Can user write about familiar topics with some variety?
-- Content: routines, past/future events, preferences, simple opinions.
-- Grammar: Present + past tense, some complex sentences allowed.
-- Word count: 60-80 words.
-- Example context: "Write an email to a friend about your weekend. Mention 3 things you did."
-- Evaluation: All 3 points covered? Uses past tense? Mostly correct spelling/grammar?
-
-B1 LEVEL:
-- Task type: email, letter, informal dialogue, short article.
-- Focus: Can user organize ideas and explain reasons?
-- Content: opinions, reasons, descriptions of experiences, advice.
-- Grammar: Past/present/future tenses, complex sentences with subordinate clauses.
-- Word count: 100-150 words.
-- Example context: "Write a letter to a hotel manager about your recent stay. Explain what was good and suggest one improvement."
-- Evaluation: Ideas clearly organized? Reasons provided? Appropriate tone? Good grammar?
-
-B2 LEVEL:
-- Task type: email, formal letter, article, report excerpt, dialogue.
-- Focus: Can user argue, analyze, and write formally/informally?
-- Content: complex opinions, analysis, hypothetical situations, formal requests.
-- Grammar: Range of tenses, complex structures, nuanced language.
-- Word count: 150-250 words.
-- Example context: "Write a formal email to your employer proposing a change to the work schedule. Include background, benefits, and address potential concerns."
-- Evaluation: Clear argument structure? Formal register maintained? Sophisticated vocabulary? Minimal errors?
-
-
 Content Rules:
-- Use realistic everyday scenarios: work, travel, shopping, family, hobbies, complaints, requests.
+- Use realistic everyday scenarios: work, travel, shopping, family, hobbies, complaints, requests, opinions.
 - Provide clear context and situation to make task meaningful.
-- Avoid ambiguous or overly complex instructions.
 - Ensure 3 content points are achievable within word limit.
 - example_response should be well-written but concise.
+
+
+{level_guidelines}
 
 
 Return ONLY the JSON array with 5 objects.
@@ -295,6 +301,42 @@ def get_speaking_prompt(topic, level="A1", item_id_start=1, interaction_type="in
     vocab_list = fetch_vocab_from_vector_db(topic, level)
     logger.info(f"Retrieved {len(vocab_list)} vocabulary items for prompt generation")
     logger.debug(f"Vocabulary items: {vocab_list}")
+
+    level_guidelines = f"""
+Speaking Task Guidelines by Level (Based on Study Plans):
+
+A1 LEVEL:
+- Types: interview, question_answer, basic dialogue, picture description (simple).
+- Focus: Can user answer simple questions? Introduce themselves? Use basic phrases? Ask for and give simple directions/times.
+- Grammar: Present tense mostly, simple sentences (Hauptsatz), Nominative/Accusative/Dative. (Source A1 Plan)
+- Expected duration: 15-30 seconds per sustained response.
+- Task: Ask/answer simple personal questions, describe daily routine, ask for directions, state simple preferences.
+- Evaluation: Clear pronunciation? Understands question? Uses basic grammar/vocabulary (e.g., correct case for simple objects)?
+
+A2 LEVEL:
+- Types: dialogue, interview, question_answer, picture description, roleplay.
+- Focus: Can user have short conversations? Describe simple situations? Handle familiar topics (travel, past events) and give simple reasons.
+- Grammar: Present + past tense (Perfekt, Präteritum), some complex sentences with basic subordinate clauses ('weil', 'dass'), Reflexive verbs, Passiv Präsens. (Source A2 Plan)
+- Expected duration: 30-60 seconds per sustained response.
+- Task: Describe a past trip/weekend, give reasons for a preference, describe a product, discuss banking/money matters.
+- Evaluation: Fluent with minimal pauses? Uses variety of tenses? Can initiate and maintain short exchanges?
+
+B1 LEVEL:
+- Types: dialogue, roleplay, interview, picture_description, short presentation.
+- Focus: Can user express opinions, explain reasons, deal with hypothetical situations (Irreales), and handle social/professional interactions (job interview, complaint).
+- Grammar: Multiple tenses (Futur I, Passiv, Perfekt/Präteritum), complex sentence structures, subordinate clauses. Must attempt to use Konjunktiv II for hypothetical situations. (Source B1 Plan)
+- Expected duration: 1-2 minutes per sustained response.
+- Task: Present an opinion on a topic and defend it, describe and analyze a complex image, participate in a consensus-finding discussion, roleplay a complaint/request.
+- Evaluation: Fluent with occasional pauses? Natural rhythm? Effective use of B1 grammar (e.g., Konjunktiv II, subordinate clauses)? Can structure a longer turn?
+
+B2 LEVEL:
+- Types: dialogue (complex), roleplay, interview (advanced), presentation (long), formal discussion.
+- Focus: Can user argue, hypothesize, criticize, discuss abstract and specialized topics (science, politics, society), and speak fluidly for a sustained period?
+- Grammar: Full range of tenses/moods (Konjunktiv I/II), sophisticated structures, extensive Passiv, correct use of Modalpartikels. Must be able to perform Direkte/Indirekte Rede transformations in speech. (Source B2 Plan)
+- Expected duration: 2-3 minutes per sustained response.
+- Task: Discuss advantages/disadvantages of a complex issue, propose a solution to a socio-political problem, analyze a curriculum vitae, present a complex topic using formal language.
+- Evaluation: Very fluent with natural pauses? High accuracy in complex B2 structures? Nuanced, specialized vocabulary? Sustained, coherent discourse?
+"""
 
     prompt = f"""
 Task:
@@ -321,7 +363,7 @@ JSON ARRAY STRUCTURE (exact):
     "prompt_translation": string,
     "follow_up_questions": [string, string, string],
     "follow_up_translations": [string, string, string],
-    "acceptable_response_length": "15-30 seconds" | "30-60 seconds" | "1-2 minutes",
+    "acceptable_response_length": "15-30 seconds" | "30-60 seconds" | "1-2 minutes" | "2-3 minutes",
     "vocabulary_required": [vocab from vocab_list],
     "grammar_structures_required": [string],
     "example_response": string,
@@ -354,51 +396,16 @@ CRITICAL REQUIREMENTS:
 - vocabulary_required: List specific vocab from vocab_list that student should use.
 - grammar_structures_required: List expected grammar (e.g., "Present tense", "Modal verbs", "Past tense + present").
 - example_response: Provide a 1-3 sentence model response at appropriate level.
-- Responses can be transcribed audio later; focus on generating clear prompts and evaluation criteria.
 - No explanations, no prose, no markdown — ONLY the JSON array.
-
-
-Speaking Task Guidelines by Level:
-
-A1 LEVEL:
-- Types: interview, question_answer, basic dialogue, picture description (simple).
-- Focus: Can user answer simple questions? Introduce themselves? Use basic phrases?
-- Prompts: "Tell me your name and where you live", "What's your job?", "Do you like...?"
-- Expected duration: 15-30 seconds.
-- Grammar: Present tense mostly, simple sentences.
-- Evaluation: Clear pronunciation? Understands question? Uses vocabulary learned?
-
-A2 LEVEL:
-- Types: dialogue, interview, question_answer, picture description (simple).
-- Focus: Can user have short conversations? Describe simple situations? Handle familiar topics?
-- Prompts: "Describe your typical day", "Tell me about your family", "What did you do last weekend?"
-- Expected duration: 30-60 seconds.
-- Grammar: Present + past tense, some complex sentences.
-- Evaluation: Speaks with minimal pauses? Mostly clear pronunciation? Uses variety of tenses?
-
-B1 LEVEL:
-- Types: dialogue, roleplay, interview, picture_description, presentation (short).
-- Focus: Can user express opinions? Explain reasons? Handle social interactions?
-- Prompts: "Describe this picture and explain what is happening", "You're at a restaurant, order a meal", "What do you think about...? Why?"
-- Expected duration: 1-2 minutes.
-- Grammar: Multiple tenses, complex sentence structures, subordinate clauses.
-- Evaluation: Fluent with occasional pauses? Natural pronunciation? Can express opinions?
-
-B2 LEVEL:
-- Types: dialogue (complex), roleplay, interview (advanced), presentation, discussion.
-- Focus: Can user argue, hypothesize, handle unexpected turns? Speak fluidly?
-- Prompts: "Discuss advantages and disadvantages of...", "What would you do if...?", "Explain your opinion on a controversial topic."
-- Expected duration: 2-3 minutes per response.
-- Grammar: Full range of tenses, sophisticated structures, subtle meaning.
-- Evaluation: Very fluent with natural pauses? Native-like pronunciation? Nuanced arguments?
 
 
 Content Rules:
 - Use realistic everyday scenarios: introductions, shopping, travel, work, complaints, opinions, advice.
 - Provide clear context for roleplay and dialogue tasks.
-- Avoid abstract or overly philosophical topics for A1/A2.
 - Make follow-up questions progressively harder (Q1 simple, Q3 challenging).
-- example_response should demonstrate good pronunciation and appropriate level.
+
+
+{level_guidelines}
 
 
 Evaluation_Criteria Guidelines:
