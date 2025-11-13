@@ -60,7 +60,9 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
     logger.info(f"Available LanceDB table directories: {available_tables}")
     
     logger.debug(f"Connecting to LanceDB at path: {db_path} (absolute: {db_path_obj.absolute()})")
-    db = connect(db_path)
+    # Ensure we use absolute path for connection
+    abs_db_path = str(db_path_obj.absolute())
+    db = connect(abs_db_path)
     
     # Try to list tables using LanceDB API if available
     lancedb_table_names = []
@@ -105,30 +107,87 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
         table_name_to_use = dbName
         logger.info(f"Using table name '{table_name_to_use}' (not found in LanceDB API, using directory-based name)")
     
-    # Try to open the table
+    # Try to open the table using multiple methods
     logger.info(f"Attempting to open table: '{table_name_to_use}'")
     table = None
     last_error = None
+    tried_names = []
     
+    # Method 1: Try open_table with the determined name
     try:
         table = db.open_table(table_name_to_use)
-        logger.info(f"Successfully opened table: '{table_name_to_use}'")
+        logger.info(f"Successfully opened table using open_table('{table_name_to_use}')")
+        tried_names.append(table_name_to_use)
     except Exception as e:
         last_error = e
-        error_type = type(e).__name__
-        error_msg_str = str(e)
-        logger.error(f"Failed to open table '{table_name_to_use}': {error_type}: {error_msg_str}")
-        
-        # If we used the API name and it failed, this is suspicious - try fallback
-        if lancedb_table_names and table_name_to_use in lancedb_table_names:
-            logger.warning(f"LanceDB API reported table '{table_name_to_use}' exists but open_table failed. Trying fallback name '{dbName}'")
+        tried_names.append(table_name_to_use)
+        logger.debug(f"Method 1 (open_table) failed: {type(e).__name__}: {e}")
+    
+    # Method 2: Try bracket notation (db[table_name])
+    if table is None:
+        try:
+            table = db[table_name_to_use]
+            logger.info(f"Successfully opened table using db['{table_name_to_use}']")
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Method 2 (bracket notation) failed: {type(e).__name__}: {e}")
+    
+    # Method 2b: Try db.table() method (alternative API)
+    if table is None:
+        try:
+            if hasattr(db, 'table'):
+                table = db.table(table_name_to_use)
+                logger.info(f"Successfully opened table using db.table('{table_name_to_use}')")
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Method 2b (db.table) failed: {type(e).__name__}: {e}")
+    
+    # Method 3: If API reported the table exists but open failed, try the original dbName
+    if table is None and lancedb_table_names and table_name_to_use in lancedb_table_names:
+        logger.warning(f"LanceDB API reported table '{table_name_to_use}' exists but open failed. Trying original dbName '{dbName}'")
+        try:
+            table = db.open_table(dbName)
+            logger.info(f"Successfully opened table using open_table('{dbName}')")
+            tried_names.append(dbName)
+            last_error = None
+        except Exception as e:
+            last_error = e
+            tried_names.append(dbName)
+            logger.debug(f"Method 3 (fallback dbName) failed: {type(e).__name__}: {e}")
+    
+    # Method 4: Try bracket notation with dbName
+    if table is None:
+        try:
+            table = db[dbName]
+            logger.info(f"Successfully opened table using db['{dbName}']")
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Method 4 (bracket notation with dbName) failed: {type(e).__name__}: {e}")
+    
+    # Method 4b: Try db.table() with dbName
+    if table is None:
+        try:
+            if hasattr(db, 'table'):
+                table = db.table(dbName)
+                logger.info(f"Successfully opened table using db.table('{dbName}')")
+        except Exception as e:
+            last_error = e
+            logger.debug(f"Method 4b (db.table with dbName) failed: {type(e).__name__}: {e}")
+    
+    # Method 5: Try opening by direct path if table directory exists
+    if table is None:
+        table_dir_path = db_path_obj / (dbName + ".lance")
+        if table_dir_path.exists() and table_dir_path.is_dir():
+            logger.warning(f"Trying to open table using direct path: {table_dir_path}")
             try:
-                table = db.open_table(dbName)
-                logger.info(f"Successfully opened table using fallback name: '{dbName}'")
-                last_error = None
-            except Exception as e2:
-                logger.error(f"Fallback also failed: {type(e2).__name__}: {e2}")
-                last_error = e2
+                # Try connecting directly to the table directory
+                from lancedb import connect
+                table_db = connect(str(table_dir_path.parent))
+                table = table_db.open_table(dbName)
+                logger.info(f"Successfully opened table using direct path method")
+            except Exception as e:
+                last_error = e
+                logger.debug(f"Method 5 (direct path) failed: {type(e).__name__}: {e}")
     
     if table is None:
         # Verify table directory structure
@@ -149,9 +208,10 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
                     logger.warning(f"Could not list table directory contents: {e}")
         
         # Provide helpful error message with available tables
-        table_name_with_extension = dbName + ".lance"
+        all_tried = list(set([table_name_to_use, dbName] + (tried_names if tried_names else [])))
         error_msg_parts = [
-            f"Could not open table '{table_name_to_use}' (tried: '{table_name_to_use}', '{dbName}', '{table_name_with_extension}').",
+            f"Could not open table '{table_name_to_use}' (tried methods: open_table, bracket notation, table() method).",
+            f"Tried names: {all_tried}.",
             f"Last error: {last_error}.",
             f"Available table directories: {available_tables}.",
         ]
