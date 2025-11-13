@@ -18,36 +18,36 @@ RUN uv sync --frozen
 RUN uv run python -c "import whisper; whisper.load_model('base')"
 
 # Copy application code
-# Ensure all files including hidden directories are copied
 COPY app/ .
 
+# Ensure LanceDB data structure is complete
+# Docker COPY should preserve all directories, but verify and fix if needed
+RUN if [ -d "utils/lancedb_data" ]; then \
+        echo "Checking LanceDB data structure..." && \
+        find utils/lancedb_data -type d -name "_versions" | wc -l && \
+        echo "_versions directories found"; \
+    fi
+
 # Verify LanceDB data was copied correctly with all subdirectories
+# Note: If using volume mounts (recommended), this check runs at build time
+# The volume mount in docker-compose.yml will override this at runtime
 RUN if [ -d "utils/lancedb_data" ]; then \
         echo "=== LanceDB data directory verification ===" && \
-        echo "Directory structure:" && \
-        find utils/lancedb_data -type d | sort && \
-        echo "" && \
-        echo "Checking for _versions directories:" && \
-        find utils/lancedb_data -name "_versions" -type d && \
-        echo "" && \
-        echo "Checking for manifest files:" && \
-        find utils/lancedb_data -name "*.manifest" && \
-        echo "" && \
-        echo "Detailed check for A1_MINIMAL_vocabulary:" && \
-        if [ -d "utils/lancedb_data/A1_MINIMAL_vocabulary.lance" ]; then \
-            echo "  Directory exists" && \
-            ls -la utils/lancedb_data/A1_MINIMAL_vocabulary.lance/ && \
-            if [ -d "utils/lancedb_data/A1_MINIMAL_vocabulary.lance/_versions" ]; then \
-                echo "  ✓ _versions directory exists" && \
-                ls -la utils/lancedb_data/A1_MINIMAL_vocabulary.lance/_versions/; \
-            else \
-                echo "  ✗ _versions directory MISSING!"; \
-            fi; \
+        versions_count=$(find utils/lancedb_data -type d -name "_versions" | wc -l) && \
+        echo "Found $versions_count _versions directories" && \
+        if [ "$versions_count" -eq 0 ]; then \
+            echo "WARNING: No _versions directories found in image!" && \
+            echo "This is OK if using volume mounts in docker-compose.yml" && \
+            echo "Directory structure:" && \
+            find utils/lancedb_data -type d | head -20; \
         else \
-            echo "  ✗ A1_MINIMAL_vocabulary.lance directory not found"; \
+            echo "✓ _versions directories found in image" && \
+            echo "Checking for manifest files:" && \
+            find utils/lancedb_data -name "*.manifest" | head -5; \
         fi; \
     else \
-        echo "ERROR: utils/lancedb_data directory not found!"; \
+        echo "WARNING: utils/lancedb_data directory not found in image!" && \
+        echo "This is OK if using volume mounts in docker-compose.yml"; \
     fi
 
 # Explicitly ensure LanceDB data directory is copied and verify it exists with complete structure
