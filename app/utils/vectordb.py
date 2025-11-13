@@ -83,29 +83,45 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
     
     # LanceDB table names match directory names, which include .lance extension
     table_name = dbName + ".lance"
-    logger.info(f"Attempting to open table: {table_name}")
+    logger.info(f"Attempting to open table for dbName: {dbName}")
     table = None
     last_error = None
     
     # Try multiple naming conventions
-    # If LanceDB API provided table names, try those first
+    # Priority: 1) Exact match from LanceDB API, 2) dbName without extension, 3) dbName with extension
     table_name_variants = []
-    if lancedb_table_names:
-        # Try exact matches from LanceDB API first
-        for lancedb_name in lancedb_table_names:
-            if dbName in lancedb_name or table_name in lancedb_name:
-                table_name_variants.append(lancedb_name)
     
-    # Add standard variants
+    if lancedb_table_names:
+        # First, try exact match from LanceDB API (these are the authoritative names)
+        for lancedb_name in lancedb_table_names:
+            # Exact match (most reliable)
+            if lancedb_name == dbName:
+                table_name_variants.append(lancedb_name)
+                logger.debug(f"Found exact match in LanceDB API: '{lancedb_name}'")
+            # Also check if it matches when we remove .lance from directory name
+            elif lancedb_name == table_name.replace('.lance', ''):
+                table_name_variants.append(lancedb_name)
+                logger.debug(f"Found match in LanceDB API (after removing .lance): '{lancedb_name}'")
+        
+        # If no exact match found, try substring matching as fallback
+        if not table_name_variants:
+            for lancedb_name in lancedb_table_names:
+                if dbName == lancedb_name or dbName in lancedb_name:
+                    table_name_variants.append(lancedb_name)
+                    logger.debug(f"Found substring match in LanceDB API: '{lancedb_name}'")
+    
+    # Add standard variants (try these if API names didn't work)
+    # Note: dbName should match what LanceDB API reports (without .lance)
     table_name_variants.extend([
-        table_name,  # With .lance extension
-        dbName,      # Without .lance extension
-        table_name.replace('.lance', ''),  # Explicitly remove extension
+        dbName,      # Without .lance extension (most common case)
+        table_name,  # With .lance extension (for directory-based access)
     ])
     
     # Remove duplicates while preserving order
     seen = set()
     table_name_variants = [v for v in table_name_variants if not (v in seen or seen.add(v))]
+    
+    logger.info(f"Will try table name variants in order: {table_name_variants}")
     
     for variant in table_name_variants:
         try:
@@ -113,9 +129,9 @@ def fetch_vocab_from_vector_db(query: str, level: str = "A1", n: int = 10) -> li
             table = db.open_table(variant)
             logger.info(f"Successfully opened table: '{variant}'")
             break
-        except (ValueError, Exception) as e:
+        except (ValueError, FileNotFoundError, Exception) as e:
             last_error = e
-            logger.debug(f"Failed to open table '{variant}': {e}")
+            logger.debug(f"Failed to open table '{variant}': {type(e).__name__}: {e}")
             continue
     
     if table is None:
