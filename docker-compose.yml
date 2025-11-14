@@ -34,8 +34,10 @@ services:
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    # Port mapping removed for production - database is accessible via Docker network
+    # For local development, add to docker-compose.local.yml if needed
+    # ports:
+    #   - "5432:5432"
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     restart: unless-stopped
