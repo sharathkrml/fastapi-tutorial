@@ -1,0 +1,1 @@
+model_name = "nvidia/nemotron-nano-12b-v2-vl:free"

@@ -10,7 +10,7 @@ from starlette.responses import Response
 
 from utils.prompts import evaluate_speaking_response, evaluate_writing_response
 from utils.whisper import transcribe_mp3
-
+from constants import model_name
 # Set up logger
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def validate_speaking(
             # Get evaluation from LLM
             logger.info("Sending request to OpenAI API for evaluation")
             response = client.chat.completions.create(
-                model="meta-llama/llama-3.3-8b-instruct:free",
+                model=model_name,
                 messages=[{"role": "user", "content": prompt}],
             )
             logger.debug("Received response from OpenAI API")
@@ -182,7 +182,7 @@ async def validate_writing(
     logger.debug(f"Evaluation prompt generated (length: {len(prompt)} characters)")
     logger.info("Sending request to OpenAI API for evaluation")
     response = client.chat.completions.create(
-        model="meta-llama/llama-3.3-8b-instruct:free",
+        model=model_name,
         messages=[{"role": "user", "content": prompt}],
     )
     logger.debug("Received response from OpenAI API")

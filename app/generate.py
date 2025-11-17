@@ -12,6 +12,7 @@ from utils.prompts import (
 )
 from openai import OpenAI
 from starlette.responses import Response
+from constants import model_name
 
 load_dotenv()
 
@@ -39,7 +40,7 @@ def generate_listening(topic: str, level: str = "A1"):
 
         logger.info("Sending request to OpenAI API for listening content generation")
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-8b-instruct:free",
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.debug("Received response from OpenAI API")
@@ -115,7 +116,7 @@ def generate_reading(topic: str, level: str = "A1", item_id_start: int = 1, pref
 
         logger.info("Sending request to OpenAI API for reading content generation")
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-8b-instruct:free",
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.debug("Received response from OpenAI API")
@@ -191,7 +192,7 @@ def generate_writing(topic: str, level: str = "A1", item_id_start: int = 1, task
 
         logger.info("Sending request to OpenAI API for writing content generation")
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-8b-instruct:free",
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.debug("Received response from OpenAI API")
@@ -267,7 +268,7 @@ def generate_speaking(topic: str, level: str = "A1", item_id_start: int = 1, int
 
         logger.info("Sending request to OpenAI API for speaking content generation")
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-8b-instruct:free",
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
         )
         logger.debug("Received response from OpenAI API")
