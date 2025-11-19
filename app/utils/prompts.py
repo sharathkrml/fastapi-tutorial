@@ -70,6 +70,14 @@ CRITICAL REQUIREMENTS:
 - correctAnswer MUST be EXACTLY one of the options.
 - No explanations, no prose, no markdown — ONLY the JSON array.
 - Perfectly follow the JSON array structure.
+- The output MUST be valid JSON.
+- The JSON MUST be a single array with EXACTLY 10 objects.
+- The JSON MUST contain:
+    * no trailing commas
+    * no comments
+    * all keys in double-quotes
+    * all strings in double-quotes
+- The output MUST be parsable by JSON.parse() without errors.
 
 
 Content Rules:
@@ -152,6 +160,14 @@ CRITICAL REQUIREMENTS:
 - Distractors must be plausible (similar to correct answer but incorrect).
 - No explanations, no prose, no markdown — ONLY the JSON array.
 - Perfectly follow the JSON array structure.
+- The output MUST be valid JSON.
+- The JSON MUST be a single array with EXACTLY 8 objects.
+- The JSON MUST contain:
+    * no trailing commas
+    * no comments
+    * all keys in double-quotes
+    * all strings in double-quotes
+- The output MUST be parsable by JSON.parse() without errors.
 
 Content Rules:
 - Use realistic texts: emails, postcards, advertisements, simple articles, schedules.
@@ -275,6 +291,14 @@ CRITICAL REQUIREMENTS:
 - evaluation_criteria MUST define how to assess: task completion, vocabulary, grammar, coherence.
 - No explanations, no prose, no markdown — ONLY the JSON array.
 - Perfectly follow the JSON array structure.
+- The output MUST be valid JSON.
+- The JSON MUST be a single array with EXACTLY 5 objects.
+- The JSON MUST contain:
+    * no trailing commas
+    * no comments
+    * all keys in double-quotes
+    * all strings in double-quotes
+- The output MUST be parsable by JSON.parse() without errors.
 
 Content Rules:
 - Use realistic everyday scenarios: work, travel, shopping, family, hobbies, complaints, requests, opinions.
@@ -400,6 +424,14 @@ CRITICAL REQUIREMENTS:
 - example_response: Provide a 1-3 sentence model response at appropriate level.
 - No explanations, no prose, no markdown — ONLY the JSON array.
 - Perfectly follow the JSON array structure.
+- The output MUST be valid JSON.
+- The JSON MUST be a single array with EXACTLY 6 objects.
+- The JSON MUST contain:
+    * no trailing commas
+    * no comments
+    * all keys in double-quotes
+    * all strings in double-quotes
+- The output MUST be parsable by JSON.parse() without errors.
 
 Content Rules:
 - Use realistic everyday scenarios: introductions, shopping, travel, work, complaints, opinions, advice.
